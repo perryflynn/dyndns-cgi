@@ -2,6 +2,7 @@
 
 ### BEGIN CONFIG
 
+CFG_LOGDIR=/var/log/dyndns-cgi
 CFG_KEYFOLDER=/var/www/dyndns-cgi/keys
 CFG_DNSSERVER=8.8.8.8
 CFG_TTL=60
@@ -25,6 +26,11 @@ requireapp() {
     if ! command -v "$1" &> /dev/null; then
         abort 500 "Internal Server Error" "'$1' not installed"
     fi
+}
+
+log() {
+    local msg=$1
+    echo -e "[$(date +"%Y-%m-%dT%H:%M:%S%z")] ${REMOTE_ADDR:--} ${HTTP_X_ARGS_USERNAME:--} $msg" >> "$CFG_LOGDIR/update.log"
 }
 
 #-> Check dependencies
@@ -57,6 +63,7 @@ fi
 KEYFILE=$(realpath -e "$CFG_KEYFOLDER/hmac-$GET_USERNAME.enc")
 
 if ! ( echo "$KEYFILE" | grep -P "^$CFG_KEYFOLDER" ); then
+    log "User unknown"
     abort 401 "Unauthorized" "User unknown"
 fi
 
@@ -66,6 +73,7 @@ HMACKEY=$( cat "$KEYFILE" | pass=$GET_PASSWORD openssl enc -aes-256-cbc -d -iter
 KEYSTATUS=$?
 
 if [ $KEYSTATUS -ne 0 ]; then
+    log "Key decryption failed"
     abort 401 "Unauthorized" "Key decryption failed"
 fi
 
@@ -77,6 +85,7 @@ PRIMARYNS=$( dig +noall +authority "$GET_DOMAIN" SOA "@$CFG_DNSSERVER" | grep -P
 NSSTATUS=$?
 
 if [ $NSSTATUS -ne 0 ] || [ -z "$PRIMARYNS" ]; then
+    log "Unable to get primary nameserver"
     abort 400 "Bad Request" "Unable to get the primary nameserver"
 fi
 
@@ -94,9 +103,9 @@ if [ "$GET_MODE" == "request" ]; then
 fi
 
 # auto assign when there is only a generic IP parameter
-if [ -z "$GET_IP4" ] && [ -z "$GET_IP6" ] && [ -n "$GET_IP" ] && [[ $REQUEST_ADDR == *"."* ]]; then
+if [ -z "$GET_IP4" ] && [ -z "$GET_IP6" ] && [ -n "$GET_IP" ] && [[ $GET_IP == *"."* ]]; then
     GET_IP4=$GET_IP
-elif [ -z "$GET_IP4" ] && [ -z "$GET_IP6" ] && [ -n "$GET_IP" ] && [[ $REQUEST_ADDR == *":"* ]]; then
+elif [ -z "$GET_IP4" ] && [ -z "$GET_IP6" ] && [ -n "$GET_IP" ] && [[ $GET_IP == *":"* ]]; then
     GET_IP6=$GET_IP
 fi
 
@@ -138,9 +147,13 @@ QUEUE="$QUEUE\nsend"
 if [ "$(echo -e "$QUEUE" | wc -l)" -gt 3 ]; then
     NSUPDATE=$(echo -e "$QUEUE" | nsupdate -y "$FULLKEY" 2>&1)
     NSRESULT=$?
+
     if [ $NSRESULT -eq 0 ]; then
+        log "Update success; $(echo "$CHANGES" | sed -r 's/^[ ;]+//g' | sed -r 's/[ ;]+$//g')"
         abort 200 OK "Update success; $(echo "$CHANGES" | sed -r 's/^[ ;]+//g' | sed -r 's/[ ;]+$//g')"
     else
+        log "Update failed; Exit Code = $NSRESULT; $NSUPDATE"
+        log "Queue:\n$QUEUE"
         abort 400 "Bad Request" "Update failed"
     fi
 
