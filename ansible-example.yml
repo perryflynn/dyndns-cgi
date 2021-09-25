@@ -1,0 +1,146 @@
+---
+- name: Ansible Example for installing dyndns-cgi
+  tasks:
+
+    - name: Setup DynDNS HTTPS Endpoint
+      block:
+
+        - name: Install packages
+          package:
+            name:
+              - nginx-full
+              - libnginx-mod-http-lua
+              - fcgiwrap
+              - cowsay
+              - fortunes
+              - fortune-mod
+              - fortunes-bofh-excuses
+
+        - name: Webserver directories
+          file:
+            path: "{{item}}"
+            owner: root
+            group: www-data
+            mode: u=rwx,g=rx,o=-
+            state: directory
+          loop:
+            - /var/www/html
+            - /var/www/html/cgi-bin
+            - /var/www/dyndns-cgi
+            - /var/www/dyndns-cgi/keys
+
+        - name: nginx include dyndns_cgi.conf
+          get_url:
+            dest: /etc/nginx/dyndns_cgi.conf
+            url: https://github.com/perryflynn/dyndns-cgi/raw/master/src/etc/nginx/dyndns_cgi.conf
+            sha256sum: cca4c10d2e40ae309bc9015c74b752d01414f505aaff6cfbe735eaf3a80e32b3
+            group: root
+            owner: root
+            mode: u=rw,go=r
+          notify:
+            - 'Restart nginx'
+
+        - name: nginx site
+          copy:
+            dest: /etc/nginx/sites-available/default
+            owner: root
+            group: root
+            mode: u=rw,go=r
+            content: |
+              # this file is managed by anisble
+
+              server {
+                  listen 80 default_server;
+                  listen [::]:80 default_server;
+                  server_name _;
+                  add_header Content-Type "text/plain; charset=UTF-8";
+                  return 200 "Hello World!";
+              }
+
+              server {
+                  listen 80;
+                  listen [::]:80;
+                  server_name ns.example.com;
+                  return 302 https://ns.example.com$request_uri;
+              }
+
+              server {
+                  listen 443 ssl;
+                  listen [::]:443 ssl;
+
+                  ssl_protocols TLSv1.2 TLSv1.3;
+                  ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+                  ssl_prefer_server_ciphers off;
+
+                  ssl_session_timeout 1d;
+                  ssl_session_cache shared:SSL:10m;
+                  ssl_session_tickets off;
+
+                  add_header Strict-Transport-Security "max-age=63072000" always;
+
+                  ssl_certificate /etc/letsencrypt/example.com/fullchain.cer;
+                  ssl_certificate_key /etc/letsencrypt/example.com/example.com.key;
+
+                  root /var/www/html;
+                  index index.html index.htm index.nginx-debian.html;
+
+                  server_name ns.example.com;
+
+                  location / {
+                      return 302 /cgi-bin/index.cgi;
+                  }
+
+                  include /etc/nginx/dyndns_cgi.conf;
+              }
+          notify:
+            - 'Restart nginx'
+
+        - name: Enable nginx website
+          file:
+            path: /etc/nginx/sites-enabled/default
+            src: /etc/nginx/sites-available/default
+            state: link
+            owner: root
+            group: root
+          notify:
+            - 'Restart nginx'
+
+        - name: logrotate dyndns-cgi
+          get_url:
+            dest: /etc/logrotate.d/dyndns-cgi
+            url: https://github.com/perryflynn/dyndns-cgi/raw/master/src/etc/logrotate.d/dyndns-cgi
+            sha256sum: bc5b9cbdcfd21654dc52c437b369e1cdc9bdf8c184948d21f2d4bf8a42688978
+            group: root
+            owner: root
+            mode: u=rw,go=r
+
+        - name: Log directory
+          file:
+            path: "/var/log/dyndns-cgi"
+            owner: root
+            group: www-data
+            mode: ug=rwx,o=-
+            state: directory
+
+        - name: dyndns.cgi
+          get_url:
+            dest: /var/www/html/cgi-bin/dyndns.cgi
+            url: https://github.com/perryflynn/dyndns-cgi/raw/master/src/var/www/html/cgi-bin/dyndns.cgi
+            sha256sum: 9a0d3109b4b24d4b0bf908cfc58755adc981363cd9b1f1bc3d757cd5acce266d
+            group: root
+            owner: www-data
+            mode: u=rwx,g=rx,o=-
+
+        - name: index.cgi
+          copy:
+            dest: /var/www/html/cgi-bin/index.cgi
+            owner: root
+            group: www-data
+            mode: u=rwx,g=rx,o=-
+            content: |
+              #!/bin/bash
+
+              echo "Content-Type: text/plain; charset=UTF-8"
+              echo
+              /usr/games/fortune /usr/share/games/fortunes/bofh-excuses | /usr/games/cowsay
+              echo

@@ -71,6 +71,8 @@ curl -u exampleddns:eeh2phioyaa6ro1eiphuaRiuthee8EiJ "https://ns.example.com/nic
 
 ## Install
 
+There is a Ansible example in [ansible-example.yml](ansible-example.yml) as well.
+
 ### Packages
 
 ```sh
