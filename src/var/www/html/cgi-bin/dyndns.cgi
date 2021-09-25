@@ -30,7 +30,7 @@ requireapp() {
 
 log() {
     local msg=$1
-    echo -e "[$(date +"%Y-%m-%dT%H:%M:%S%z")] ${REMOTE_ADDR:--} ${HTTP_X_ARGS_USERNAME:--} $msg" >> "$CFG_LOGDIR/update.log"
+    echo -e "[$(date +"%Y-%m-%dT%H:%M:%S%z")] ${REMOTE_ADDR:--} ${HTTP_X_ARGS_USERNAME:--} - $msg" >> "$CFG_LOGDIR/update.log"
 }
 
 #-> Check dependencies
