@@ -134,3 +134,11 @@ key exampleddns {
 ```
 
 Of course you need now **add update policies to the zone** as well.
+
+## Resources
+
+- https://service.avm.de/help/de/FRITZ-Box-Fon-WLAN-7490/016/hilfe_dyndns
+- https://www.gwbasics.be/blog.nsf/dx/custom-dynamic-dns-on-ubiquity-router-with-domaindiscount24.com.htm
+- https://freemyip.com/help
+- https://help.dyn.com/remote-access-api/perform-update/
+- https://github.com/vyos/ddclient/blob/current/ddclient

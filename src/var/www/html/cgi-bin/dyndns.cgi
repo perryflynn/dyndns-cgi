@@ -117,14 +117,18 @@ QUEUE="$QUEUE\nserver $PRIMARYNS"
 
 # IPv4 update
 if [ -n "$GET_IP4" ] && [ ! "$QUERY4" == "$GET_IP4" ]; then
-    QUEUE="$QUEUE\nupdate del ${GET_DOMAIN}. ${CFG_TTL} IN A"
+    if [ -n "$QUERY4" ]; then
+        QUEUE="$QUEUE\nupdate del ${GET_DOMAIN}. ${CFG_TTL} IN A"
+    fi
     QUEUE="$QUEUE\nupdate add ${GET_DOMAIN}. ${CFG_TTL} IN A ${GET_IP4}"
     CHANGES="$CHANGES; a=$GET_IP4"
 fi
 
 # IPv6 update
 if [ -n "$GET_IP6" ] && [ ! "$QUERY6" == "$GET_IP6" ]; then
-    QUEUE="$QUEUE\nupdate del ${GET_DOMAIN}. ${CFG_TTL} IN AAAA"
+    if [ -n "$QUERY6" ]; then
+        QUEUE="$QUEUE\nupdate del ${GET_DOMAIN}. ${CFG_TTL} IN AAAA"
+    fi
     QUEUE="$QUEUE\nupdate add ${GET_DOMAIN}. ${CFG_TTL} IN AAAA ${GET_IP6}"
     CHANGES="$CHANGES; aaaa=$GET_IP6"
 fi
