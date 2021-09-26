@@ -30,7 +30,11 @@ requireapp() {
 
 log() {
     local msg=$1
-    echo -e "[$(date +"%Y-%m-%dT%H:%M:%S%z")] ${REMOTE_ADDR:--} ${HTTP_X_ARGS_USERNAME:--} - $msg" >> "$CFG_LOGDIR/update.log"
+    echo -e "[$(date +"%Y-%m-%dT%H:%M:%S%z")] ${REMOTE_ADDR:--} $GET_USERNAME - $msg" >> "$CFG_LOGDIR/update.log"
+}
+
+sanitize() {
+    echo -e "$1" | sed -r -e '1h;2,$H;$!d;g' -e 's/[[:space:]]/ /g' -e 's/[;"\\'"'"'#]+//g' -e 's/[^[:print:]\r\t]/ /g' -e 's/[ ]+/ /g' -e 's/^[ ]+//g' -e 's/[ ]+$//g'
 }
 
 #-> Check dependencies
@@ -41,14 +45,14 @@ requireapp nsupdate
 
 #-> GET parameters
 
-GET_MODE=${HTTP_X_ARGS_MODE:-all}
-GET_USERNAME=${HTTP_X_ARGS_USERNAME:-}
-GET_PASSWORD=${HTTP_X_ARGS_PASSWORD:-}
-GET_DOMAIN=${HTTP_X_ARGS_DOMAIN:-}
-GET_IP=${HTTP_X_ARGS_IP:-}
-GET_IP4=${HTTP_X_ARGS_IP4:-}
-GET_IP6=${HTTP_X_ARGS_IP6:-}
-REQUEST_ADDR=${REMOTE_ADDR:-}
+GET_MODE=$(sanitize "${HTTP_X_ARGS_MODE:-all}")
+GET_USERNAME=$(sanitize "${HTTP_X_ARGS_USERNAME:-}")
+GET_PASSWORD=$(sanitize "${HTTP_X_ARGS_PASSWORD:-}")
+GET_DOMAIN=$(sanitize "${HTTP_X_ARGS_DOMAIN:-}")
+GET_IP=$(sanitize "${HTTP_X_ARGS_IP:-}")
+GET_IP4=$(sanitize "${HTTP_X_ARGS_IP4:-}")
+GET_IP6=$(sanitize "${HTTP_X_ARGS_IP6:-}")
+REQUEST_ADDR=$(sanitize "${REMOTE_ADDR:-}")
 
 if [ -z "$GET_USERNAME" ] || [ -z "$GET_PASSWORD" ] || [ -z "$GET_DOMAIN" ]; then
     abort 400 "Bad Request" "Required parameters missing"
